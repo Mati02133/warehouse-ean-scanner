@@ -3,3 +3,5 @@ openpyxl
 flask
 odfpy
 python-dotenv
+qrcode
+pillow
