@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <title>Dostęp do magazynu</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
-    <h1>Wpisz kod dostępu</h1>
+    <h1>Dostęp do magazynu</h1>
+
+    <h3>Opcja 1: Wpisz kod dostępu</h3>
     <form method="POST">
         <input type="text" name="code" placeholder="Kod dostępu" required>
         <button type="submit">Wejdź</button>
@@ -13,5 +16,30 @@
     {% if error %}
         <p style="color: red;">{{ error }}</p>
     {% endif %}
+
+     <h3>Opcja 2: Zeskanuj kod QR</h3>
+    <button id="start-scan-btn">Włącz skaner QR</button>
+    <div id="qr-reader" style="width: 300px; display: none;"></div>
+
+    <script>
+        const startBtn = document.getElementById('start-scan-btn');
+        const readerDiv = document.getElementById('qr-reader');
+
+        startBtn.addEventListener('click', () => {
+            readerDiv.style.display = 'block';
+            startBtn.style.display = 'none';
+
+            const html5QrCode = new Html5Qrcode("qr-reader");
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    html5QrCode.stop();
+                    window.location.href = decodedText;
+                }
+            );
+        });
+    </script>
 </body>
 </html>
