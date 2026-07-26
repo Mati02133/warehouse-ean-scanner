@@ -2,3 +2,4 @@ pandas
 openpyxl
 flask
 odfpy
+python-dotenv
