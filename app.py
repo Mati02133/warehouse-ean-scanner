@@ -12,6 +12,9 @@ app = Flask(__name__) # Create a Flask application instance
 
 app.secret_key = os.environ.get("SECRET_KEY")
 app.permanent_session_lifetime = timedelta(days=30) # Set the session lifetime
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
 
 ACCESS_CODE = os.environ.get("ACCESS_CODE")
 
@@ -70,4 +73,4 @@ def index():
     return render_template("index.html", result=result, error=error)
 
 if __name__ == "__main__":
-    app.run(debug=True, host = "0.0.0.0") # Run the Flask application in debug mode
+    app.run(debug=False, host="0.0.0.0", port=5000)
