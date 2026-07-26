@@ -1,7 +1,10 @@
 import pandas 
 import sqlite3
+import os
 
-df = pandas.read_excel('magazyn.ods', engine='odf', dtype={"ind_kod_kreskowy": str}) # We need to specify ean beacuse if there are 0s at the beginning of the ean, they will be removed
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+df = pandas.read_excel(os.path.join(BASE_DIR, 'magazyn.ods'), engine='odf', dtype={"ind_kod_kreskowy": str}) # We need to specify ean beacuse if there are 0s at the beginning of the ean, they will be removed
 
 df["ind_kod_kreskowy"] = df["ind_kod_kreskowy"].str.replace(".0", "", regex=False) # Remove the ".0" from the ean values
 
@@ -11,7 +14,7 @@ df["ean"] = df["ean"].fillna("") # Fill NaN (Not a number) values in the ean col
 
 df["location"] = df["location"].fillna("") # Same thing
  
-conn = sqlite3.connect('database.db') # Create a connection to the SQLite database
+conn = sqlite3.connect(os.path.join(BASE_DIR, "database.db")) # Create a connection to the SQLite database
 
 df.to_sql('products', conn, if_exists='replace', index=False) # Convert the DataFrame to a SQL table
 

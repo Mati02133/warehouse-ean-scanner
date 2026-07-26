@@ -15,10 +15,14 @@ app.permanent_session_lifetime = timedelta(days=30) # Set the session lifetime
 
 ACCESS_CODE = os.environ.get("ACCESS_CODE")
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "database.db")
+
+
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
 def get_db_connection():
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row # This allows us to access the columns by name instead of index(product["name"] instead of product[0])
     return conn
 @app.before_request
