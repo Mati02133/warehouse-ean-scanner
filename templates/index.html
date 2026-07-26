@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>Warehouse EAN Scanner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
     <h1>Wyszukaj produkt po EAN</h1>
 
-    <form method="POST">
-        <input type="text" name="ean" placeholder="Wpisz kod EAN" required>
+    <button id="start-scan-btn">Skanuj kod EAN</button>
+    <div id="qr-reader" style="width: 300px; display: none;"></div>
+
+    <form method="POST" id="ean-form">
+        <input type="text" name="ean" id="ean-input" placeholder="Wpisz kod EAN" required>
         <button type="submit">Szukaj</button>
     </form>
 
@@ -21,5 +25,30 @@
     {% if error %}
         <p style="color: red;">{{ error }}</p>
     {% endif %}
+
+    <script>
+        const startBtn = document.getElementById('start-scan-btn');
+        const readerDiv = document.getElementById('qr-reader');
+        const eanInput = document.getElementById('ean-input');
+        const eanForm = document.getElementById('ean-form');
+
+        startBtn.addEventListener('click', () => {
+            readerDiv.style.display = 'block';
+            startBtn.style.display = 'none';
+
+            const html5QrCode = new Html5Qrcode("qr-reader");
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    html5QrCode.stop();
+                    readerDiv.style.display = 'none';
+                    eanInput.value = decodedText;
+                    eanForm.submit();
+                }
+            );
+        });
+    </script>
 </body>
 </html>
