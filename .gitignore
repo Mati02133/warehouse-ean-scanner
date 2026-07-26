@@ -1,0 +1,20 @@
+database.db
+magazyn.xlsx
+magazyn.ods
+
+venv/
+env/
+.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+.env
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+~$*
