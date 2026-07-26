@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Warehouse EAN Scanner</title>
+</head>
+<body>
+    <h1>Wyszukaj produkt po EAN</h1>
+
+    <form method="POST">
+        <input type="text" name="ean" placeholder="Wpisz kod EAN" required>
+        <button type="submit">Szukaj</button>
+    </form>
+
+    {% if result %}
+        <h2>Znaleziono:</h2>
+        <p><strong>Nazwa:</strong> {{ result.name }}</p>
+        <p><strong>Lokalizacja:</strong> {{ result.location }}</p>
+    {% endif %}
+
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+</body>
+</html>
