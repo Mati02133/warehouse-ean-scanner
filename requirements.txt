@@ -5,3 +5,4 @@ odfpy
 python-dotenv
 qrcode
 pillow
+flask-limiter
