@@ -101,9 +101,16 @@
     const eanInput = document.getElementById('ean-input');
     const eanForm = document.getElementById('ean-form');
 
-    startBtn.addEventListener('click', () => {
+    let lastCode = null;
+    let sameCodeCount = 0;
+    const REQUIRED_MATCHES = 5; // how many times the same code must be detected before accepting it
+
+    startBtn.addEventListener('click', () => { 
         readerDiv.style.display = 'block';
         startBtn.style.display = 'none';
+
+        lastCode = null; // Reset lastCode when starting a new scan
+        sameCodeCount = 0;
 
         Quagga.init({
             inputStream: {
@@ -117,20 +124,30 @@
                 readers: ["ean_reader", "ean_8_reader"]
             },
             locate: true
-        }, (err) => {
+        }, (err) => { 
             if (err) {
                 console.error("Błąd uruchomienia skanera:", err);
                 return;
             }
-            Quagga.start();
+            Quagga.start(); 
         });
 
-        Quagga.onDetected((result) => {
+        Quagga.onDetected((result) => { // This event is triggered when a barcode is detected
             const code = result.codeResult.code;
-            Quagga.stop();
-            readerDiv.style.display = 'none';
-            eanInput.value = code;
-            eanForm.submit();
+
+            if (code === lastCode) { // Increment the count if the same code is detected again
+                sameCodeCount++;
+            } else {
+                lastCode = code;
+                sameCodeCount = 1;
+            }
+
+            if (sameCodeCount >= REQUIRED_MATCHES) {
+                Quagga.stop();
+                readerDiv.style.display = 'none'; 
+                eanInput.value = code; // Set the detected code to the input field
+                eanForm.submit();
+            }
         });
     });
 </script>
