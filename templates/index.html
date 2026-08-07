@@ -35,14 +35,67 @@
         button:active {
             background-color: #1d4ed8;
         }
-        #qr-reader {
+        #name-search-input {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        .search-wrapper {
+            position: relative;
             margin-bottom: 16px;
+        }
+        #suggestions-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 10;
+        }
+        .suggestion-item {
+            padding: 12px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .suggestion-item:hover {
+            background-color: #f0f0f0;
+        }
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+        #scanner-container {
+            position: relative;
+            margin-bottom: 16px;
+            display: none;
+        }
+        #qr-reader {
+            width: 100%;
             border-radius: 8px;
             overflow: hidden;
         }
         #qr-reader video {
             width: 100%;
             display: block;
+        }
+        #close-scan-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.6);
+            font-size: 1.1rem;
+            z-index: 20;
+            margin-bottom: 0;
         }
         form {
             display: flex;
@@ -76,80 +129,75 @@
             margin-top: 16px;
             color: #991b1b;
         }
-        #name-search-input {
-    width: 100%;
-    padding: 14px;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-}
-
-#suggestions-box {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #ccc;
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    max-height: 250px;
-    overflow-y: auto;
-    z-index: 10;
-}
-
-.suggestion-item {
-    padding: 12px 14px;
-    cursor: pointer;
-    border-bottom: 1px solid #eee;
-}
-
-.suggestion-item:hover {
-    background-color: #f0f0f0;
-}
-
-.suggestion-item:last-child {
-    border-bottom: none;
-}
     </style>
 </head>
 <body>
     <h1>Wyszukaj produkt po EAN</h1>
-    <div style="position: relative; margin-bottom: 16px;">
-    <input type="text" id="name-search-input" placeholder="Szukaj po nazwie produktu..." autocomplete="off">
-    <div id="suggestions-box"></div>
-</div>
-    <button id="start-scan-btn">📷 Skanuj kod EAN</button>
-    <div id="qr-reader" style="width: 100%; display: none;"></div>
+
+    <div class="search-wrapper">
+        <input type="text" id="name-search-input" placeholder="Szukaj po nazwie produktu..." autocomplete="off">
+        <div id="suggestions-box"></div>
+    </div>
+
+    <button id="start-scan-btn" type="button">📷 Skanuj kod EAN</button>
+
+    <div id="scanner-container">
+        <div id="qr-reader"></div>
+        <button id="close-scan-btn" type="button">✕</button>
+    </div>
+
     <form method="POST" id="ean-form">
         <input type="text" name="ean" id="ean-input" placeholder="Wpisz kod EAN" required>
         <button type="submit">Szukaj</button>
     </form>
+
     {% if result %}
         <div class="result-box">
             <p><strong>Nazwa:</strong> {{ result.name }}</p>
-            <p><strong>Lokalizacja:</strong> {{ result.location }}</p>
+            <p><strong>Lokalizacja:</strong> {{ result.location }}/{{ result.ean_last3 }}</p>
         </div>
     {% endif %}
+
     {% if error %}
         <div class="error-box">{{ error }}</div>
     {% endif %}
+
 <script>
     const startBtn = document.getElementById('start-scan-btn');
+    const scannerContainer = document.getElementById('scanner-container');
     const readerDiv = document.getElementById('qr-reader');
+    const closeBtn = document.getElementById('close-scan-btn');
     const eanInput = document.getElementById('ean-input');
     const eanForm = document.getElementById('ean-form');
 
     let lastCode = null;
     let sameCodeCount = 0;
-    const REQUIRED_MATCHES = 5; // how many times the same code must be detected before accepting it
+    const REQUIRED_MATCHES = 3;
+    let scanningActive = false;
 
-    startBtn.addEventListener('click', () => { 
-        readerDiv.style.display = 'block';
+    function stopScanner() {
+        Quagga.offDetected();
+        Quagga.stop();
+
+        const video = readerDiv.querySelector('video');
+        if (video && video.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
+        }
+
+        scanningActive = false;
+        scannerContainer.style.display = 'none';
+        startBtn.style.display = 'block';
+    }
+
+    startBtn.addEventListener('click', () => {
+        if (scanningActive) return;
+
+        scannerContainer.style.display = 'block';
         startBtn.style.display = 'none';
 
-        lastCode = null; // Reset lastCode when starting a new scan
+        lastCode = null;
         sameCodeCount = 0;
+        scanningActive = true;
 
         Quagga.init({
             inputStream: {
@@ -163,18 +211,21 @@
                 readers: ["ean_reader", "ean_8_reader"]
             },
             locate: true
-        }, (err) => { 
+        }, (err) => {
             if (err) {
                 console.error("Błąd uruchomienia skanera:", err);
+                scanningActive = false;
                 return;
             }
-            Quagga.start(); 
+            Quagga.start();
         });
 
-        Quagga.onDetected((result) => { // This event is triggered when a barcode is detected
+        Quagga.onDetected((result) => {
+            if (!scanningActive) return;
+
             const code = result.codeResult.code;
 
-            if (code === lastCode) { // Increment the count if the same code is detected again
+            if (code === lastCode) {
                 sameCodeCount++;
             } else {
                 lastCode = code;
@@ -182,56 +233,59 @@
             }
 
             if (sameCodeCount >= REQUIRED_MATCHES) {
-                Quagga.stop();
-                readerDiv.style.display = 'none'; 
-                eanInput.value = code; // Set the detected code to the input field
-                eanForm.submit();
+                stopScanner();
+                eanInput.value = code;
+                setTimeout(() => {
+                    eanForm.submit();
+                }, 100);
             }
         });
     });
 
+    closeBtn.addEventListener('click', () => {
+        stopScanner();
+    });
 
+    const nameInput = document.getElementById('name-search-input');
+    const suggestionsBox = document.getElementById('suggestions-box');
+    let debounceTimer = null;
 
-const nameInput = document.getElementById('name-search-input');
-const suggestionsBox = document.getElementById('suggestions-box');
-let debounceTimer = null;
+    nameInput.addEventListener('input', () => {
+        const query = nameInput.value.trim();
 
-nameInput.addEventListener('input', () => {
-    const query = nameInput.value.trim();
+        clearTimeout(debounceTimer);
 
-    clearTimeout(debounceTimer);
+        if (query.length < 3) {
+            suggestionsBox.innerHTML = '';
+            return;
+        }
 
-    if (query.length < 3) {
-        suggestionsBox.innerHTML = '';
-        return;
-    }
-
-    debounceTimer = setTimeout(() => {
-        fetch(`/api/search?q=${encodeURIComponent(query)}`)
-            .then(response => response.json())
-            .then(products => {
-                suggestionsBox.innerHTML = '';
-                products.forEach(product => {
-                    const item = document.createElement('div');
-                    item.className = 'suggestion-item';
-                    item.textContent = `${product.name} — ${product.location}`;
-                    item.addEventListener('click', () => {
-                        eanInput.value = product.ean;
-                        suggestionsBox.innerHTML = '';
-                        nameInput.value = '';
-                        eanForm.submit();
+        debounceTimer = setTimeout(() => {
+            fetch(`/api/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(products => {
+                    suggestionsBox.innerHTML = '';
+                    products.forEach(product => {
+                        const item = document.createElement('div');
+                        item.className = 'suggestion-item';
+                        item.textContent = `${product.name} — ${product.location}/${product.ean_last3}`;
+                        item.addEventListener('click', () => {
+                            eanInput.value = product.ean;
+                            suggestionsBox.innerHTML = '';
+                            nameInput.value = '';
+                            eanForm.submit();
+                        });
+                        suggestionsBox.appendChild(item);
                     });
-                    suggestionsBox.appendChild(item);
                 });
-            });
-    }, 300);
-});
+        }, 300);
+    });
 
-document.addEventListener('click', (e) => {
-    if (!nameInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
-        suggestionsBox.innerHTML = '';
-    }
-});
+    document.addEventListener('click', (e) => {
+        if (!nameInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+            suggestionsBox.innerHTML = '';
+        }
+    });
 </script>
 </body>
 </html>
