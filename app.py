@@ -64,12 +64,19 @@ def api_search():
 
     conn = get_db_connection()
     results = conn.execute(
-        "SELECT name, ean, location FROM products WHERE LOWER(name) LIKE LOWER(?) LIMIT 8",
-        (f"%{query}%",)
-    ).fetchall()
+        "SELECT name, ean, location FROM products WHERE LOWER(name) LIKE LOWER(?) LIMIT 8",(f"%{query}%",)).fetchall()
     conn.close()
+    products = []
+    for row in results:
+        product = dict(row)
+        ean = product["ean"]
+        if len(ean) >= 3:
+            product["ean_last3"] = ean[-3:]
+        else:
+            product["ean_last3"] = ean
+        products.append(product)
 
-    return jsonify([dict(row) for row in results])
+    return jsonify(products)
 
 @app.route("/", methods=["GET", "POST"]) #Define a route for the index page
 
@@ -82,7 +89,11 @@ def index():
         product = conn.execute("SELECT name, location FROM products WHERE ean = ?", (ean,)).fetchone()
         conn.close()
         if product:
-            result = {"name": product["name"], "location": product["location"]}
+            if len(ean) >= 3:
+                ean_last3 = ean[-3:]
+            else:
+                ean_last3 = ean
+            result = {"name": product["name"], "location": product["location"], "ean_last3": ean_last3}
         else:
             error = f"Product with EAN {ean} not found in the database."
     return render_template("index.html", result=result, error=error)
