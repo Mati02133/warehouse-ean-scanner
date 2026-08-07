@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 import sqlite3
 import os
 from datetime import timedelta
@@ -55,8 +55,23 @@ def access():
         return redirect(url_for("index"))
     return render_template("access.html", error=error)
 
+@app.route("/api/search") # Define a route for the API search endpoint
+def api_search():
+    query = request.args.get("q", "").strip()
 
-@app.route("/", methods=["GET", "POST"])
+    if len(query) < 3:
+        return jsonify([])
+
+    conn = get_db_connection()
+    results = conn.execute(
+        "SELECT name, ean, location FROM products WHERE LOWER(name) LIKE LOWER(?) LIMIT 8",
+        (f"%{query}%",)
+    ).fetchall()
+    conn.close()
+
+    return jsonify([dict(row) for row in results])
+
+@app.route("/", methods=["GET", "POST"]) #Define a route for the index page
 
 def index():
     result = None
