@@ -28,7 +28,7 @@ DB_PATH = os.path.join(BASE_DIR, "database.db")
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10) # Set a timeout of 10 seconds for database operations
     conn.row_factory = sqlite3.Row # This allows us to access the columns by name instead of index(product["name"] instead of product[0])
     return conn
 
