@@ -136,6 +136,7 @@
     <div id="scan-status"></div>
 
     <form method="POST" id="ean-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="ean" id="ean-input" placeholder="Wpisz kod EAN" required>
         <button type="submit">Szukaj</button>
     </form>

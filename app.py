@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.security import check_password_hash
+from flask_wtf.csrf import CSRFProtect 
 import secrets
 
 load_dotenv()
@@ -13,7 +14,8 @@ load_dotenv()
 app = Flask(__name__) # Create a Flask application instance
 
 app.secret_key = os.environ.get("SECRET_KEY")
-app.permanent_session_lifetime = timedelta(days=30) # Set the session lifetime
+csrf = CSRFProtect(app)
+app.permanent_session_lifetime = timedelta(days=30) # Set the session lifetime for guest users
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"

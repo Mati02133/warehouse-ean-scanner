@@ -45,6 +45,7 @@
 <body>
     <h1>Logowanie</h1>
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="username" placeholder="Login" required>
         <input type="password" name="password" placeholder="Hasło" required>
         <button type="submit">Zaloguj</button>

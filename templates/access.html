@@ -86,6 +86,7 @@
 
     <h3>Opcja 1: Wpisz kod dostępu</h3>
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="code" placeholder="Kod dostępu" required>
         <button type="submit">Wejdź</button>
     </form>
