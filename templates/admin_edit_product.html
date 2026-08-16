@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edytuj produkt</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 24px; }
+        nav { margin-bottom: 20px; }
+        nav a { color: #2563eb; text-decoration: none; margin-right: 16px; }
+        input[type="text"] {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            background-color: #2563eb;
+            color: white;
+            cursor: pointer;
+        }
+        .error-box {
+            background-color: #fee2e2;
+            border: 1px solid #fca5a5;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            color: #991b1b;
+        }
+        .success-box {
+            background-color: #dcfce7;
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            color: #166534;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/admin/products/edit">← Inny produkt</a>
+        <a href="/admin">Panel</a>
+    </nav>
+
+    <h1>Edytuj produkt</h1>
+
+    {% if success %}
+        <div class="success-box">Zapisano zmiany.</div>
+    {% endif %}
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="name" value="{{ product.name }}" required>
+        <input type="text" name="ean" value="{{ product.ean }}" required>
+        <input type="text" name="location" value="{{ product.location }}" required>
+        <button type="submit">Zapisz zmiany</button>
+    </form>
+
+    {% if error %}
+        <div class="error-box">{{ error }}</div>
+    {% endif %}
+</body>
+</html>

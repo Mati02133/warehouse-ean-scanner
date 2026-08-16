@@ -56,7 +56,6 @@ def get_current_admin():
 
 
 @app.before_request
-
 def require_access():
     allowed_routes = ["access", "static", "login"]
     if request.endpoint in allowed_routes:
@@ -69,6 +68,7 @@ def require_access():
         return
     if not session.get("has_access"):
         return redirect(url_for("access"))
+
 
 @app.route("/access", methods=["GET", "POST"])
 @limiter.limit("5 per 15 minutes") # Limit the number of access attempts to 5 per 15 minutes
@@ -89,6 +89,8 @@ def access():
         session["has_access"] = True
         return redirect(url_for("index"))
     return render_template("access.html", error=error)
+
+
 @app.route("/login", methods = ["GET", "POST"])
 @limiter.limit("5 per 15 minutes")
 def login():
@@ -140,12 +142,14 @@ def admin_sessions():
     conn.close()
     return render_template("admin_sessions.html", sessions=sessions_list, current_admin_token=admin["session_token"])
 
+
 @app.route("/admin")
 def admin_panel():
     admin = get_current_admin()
     if admin is None:
         return redirect(url_for("access"))
     return render_template("admin_panel.html", admin=admin)
+
 
 @app.route("/admin/products/add", methods=["GET", "POST"])
 def admin_add_product():
@@ -177,6 +181,61 @@ def admin_add_product():
     success = request.args.get("success")
     return render_template("add_product.html", error=error, success=success)
 
+
+@app.route("/admin/products/edit", methods = ["GET"])
+def admin_edit_search():
+    admin = get_current_admin()
+    if admin is None:
+        return redirect(url_for("access"))
+    error = None
+    ean_query = request.args.get("ean", "").strip()
+    if ean_query:
+        conn = get_db_connection()
+        product = conn.execute("SELECT rowid FROM products WHERE ean = ?", (ean_query,)).fetchone()
+        conn.close()
+        if product:
+            return redirect(url_for("admin_edit_product", rowid=product["rowid"]))
+        else:
+            error = f"Produkt z EAN {ean_query} nie istnieje w bazie danych."
+    return render_template("admin_edit_search.html", error=error)
+
+
+@app.route("/admin/products/edit/<int:rowid>", methods=["GET", "POST"])
+def admin_edit_product(rowid):
+    admin = get_current_admin()
+    if admin is None:
+        return redirect(url_for("access"))
+    conn = get_db_connection()
+    product = conn.execute("SELECT rowid, name, ean, location FROM products WHERE rowid = ?", (rowid,)).fetchone()
+    if product is None:
+        conn.close()
+        return redirect(url_for("admin_edit_search"))
+    error = None
+    success = request.args.get("success")
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        ean = request.form.get("ean", "").strip()
+        location = request.form.get("location", "").strip()
+        if not name or not ean or not location:
+            error = "Wszystkie pola są wymagane."
+        elif not ean.isdigit():
+            error = "EAN musi składać się tylko z cyfr."
+        else:
+            duplicate = conn.execute("SELECT rowid FROM products WHERE ean = ? AND rowid != ?", (ean, rowid)).fetchone()
+            if duplicate:
+                error = f"Produkt z EAN {ean} już istnieje w bazie danych."
+            else:
+                old_name, old_ean, old_location = product["name"], product["ean"], product["location"]
+                conn.execute("UPDATE products SET name = ?, ean = ?, location = ? WHERE rowid = ?", (name, ean, location, rowid))
+                conn.execute("INSERT INTO audit_logs (user_id, username, action, details, timestamp) VALUES (?, ?, ?, ?, ?)", (admin["user_id"], admin["username"],
+                "edit", f"Edytowano produkt: {old_name} (EAN: {old_ean}, lokalizacja: {old_location}) na: {name} (EAN: {ean}, lokalizacja: {location})", datetime.now(timezone.utc).isoformat()))
+                conn.commit()
+                conn.close()
+                return redirect(url_for("admin_edit_product", rowid=rowid, success=1))
+    conn.close()
+    return render_template("admin_edit_product.html", product=product, error=error, success=success)
+
+
 @app.route("/logout")
 def logout():
     admin = get_current_admin()
@@ -187,6 +246,21 @@ def logout():
         conn.close()
     session.clear()
     return redirect(url_for('access'))
+
+
+@app.route("/api/admin_search_name")
+def api_admin_search_name():
+    admin = get_current_admin()
+    if admin is None:
+        return jsonify([]), 403
+    query = request.args.get("q", "").strip()
+    if len(query) < 3:
+        return jsonify([])
+    conn = get_db_connection()
+    results = conn.execute("SELECT rowid, name, ean, location FROM products WHERE LOWER(name) LIKE LOWER(?) LIMIT 8", (f"%{query}%",)).fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in results])
+
 
 @app.route("/api/search") # Define a route for the API search endpoint
 def api_search():
@@ -211,8 +285,8 @@ def api_search():
 
     return jsonify(products)
 
-@app.route("/", methods=["GET", "POST"]) #Define a route for the index page
 
+@app.route("/", methods=["GET", "POST"]) #Define a route for the index page
 def index():
     result = None
     error = None
