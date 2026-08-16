@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Warehouse EAN Scanner</title>
     <style>
+        .panel-link-btn {
+    display: inline-block;
+    width: 50%;
+    padding: 12px;
+    font-size: 0.9rem;
+    background-color: #6b7280;
+    color: white;
+    text-decoration: none;
+    text-align: center;
+    border-radius: 8px;
+}
         * {
             box-sizing: border-box;
         }
@@ -264,5 +275,10 @@
         }
     });
 </script>
+{% if admin %}
+    <div style="margin-top: 32px; text-align: center;">
+        <a href="/admin" class="panel-link-btn">Panel admina</a>
+    </div>
+{% endif %}
 </body>
 </html>

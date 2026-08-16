@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel administratora</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 24px; }
+        nav { margin-bottom: 20px; }
+        nav a { color: #2563eb; text-decoration: none; margin-right: 16px; }
+        .menu-btn {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .btn-add { background-color: #16a34a; }
+        .btn-edit { background-color: #2563eb; }
+        .btn-delete { background-color: #dc2626; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">← Wyszukiwarka</a>
+        <a href="/admin/sessions">Sesje</a>
+        <a href="/logout">Wyloguj się</a>
+    </nav>
+
+    <h1>Zarządzanie produktami</h1>
+
+    <a href="/admin/products/add" class="menu-btn btn-add"> Dodaj produkt</a>
+    <a href="/admin/products/edit" class="menu-btn btn-edit"> Edytuj produkt</a>
+    <a href="/admin/products/delete" class="menu-btn btn-delete"> Usuń produkt</a>
+</body>
+</html>
