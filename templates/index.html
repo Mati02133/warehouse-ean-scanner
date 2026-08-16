@@ -120,6 +120,11 @@
     </style>
 </head>
 <body>
+    {% if admin %}
+    <div style="text-align: right; margin-bottom: 12px; font-size: 0.9rem;">
+        Zalogowano jako <strong>{{ admin.username }}</strong> — <a href="/admin/sessions">sesje</a> · <a href="/logout">wyloguj</a>
+    </div>
+{% endif %}
     <h1>Wyszukaj produkt po EAN</h1>
 
     <div class="search-wrapper">
