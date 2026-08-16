@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Potwierdź usunięcie</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 24px; }
+        nav { margin-bottom: 20px; }
+        nav a { color: #2563eb; text-decoration: none; margin-right: 16px; }
+        .product-box {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .product-box p { margin: 6px 0; }
+        button {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            background-color: #dc2626;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/admin/products/delete">← Inny produkt</a>
+        <a href="/admin">Panel</a>
+    </nav>
+
+    <h1>Na pewno usunąć?</h1>
+
+    <div class="product-box">
+        <p><strong>Nazwa:</strong> {{ product.name }}</p>
+        <p><strong>EAN:</strong> {{ product.ean }}</p>
+        <p><strong>Lokalizacja:</strong> {{ product.location }}</p>
+    </div>
+
+    <form method="POST" onsubmit="return confirm('Tej operacji nie da się cofnąć. Usunąć produkt?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Usuń produkt</button>
+    </form>
+</body>
+</html>

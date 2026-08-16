@@ -236,6 +236,45 @@ def admin_edit_product(rowid):
     return render_template("admin_edit_product.html", product=product, error=error, success=success)
 
 
+@app.route("/admin/products/delete", methods = ["GET"])
+def admin_delete_search():
+    admin = get_current_admin()
+    if admin is None:
+        return redirect(url_for("access"))
+    error = None
+    ean_query = request.args.get("ean", "").strip()
+    if ean_query:
+        conn = get_db_connection()
+        product = conn.execute("SELECT rowid FROM products WHERE ean = ?", (ean_query,)).fetchone()
+        conn.close()
+        if product:
+            return redirect(url_for("admin_delete_product", rowid=product["rowid"]))
+        else:
+            error = f"Produkt z EAN {ean_query} nie istnieje w bazie danych."
+    return render_template("admin_delete_search.html", error=error)
+
+
+@app.route("/admin/products/delete/<int:rowid>", methods=["GET", "POST"])
+def admin_delete_product(rowid):
+    admin = get_current_admin()
+    if admin is None:
+        return redirect(url_for("access"))
+    conn = get_db_connection()
+    product = conn.execute("SELECT rowid, name, ean, location FROM products WHERE rowid = ?", (rowid,)).fetchone()
+    if product is None:
+        conn.close()
+        return redirect(url_for("admin_delete_search"))
+    if request.method == "POST":
+        conn.execute("DELETE FROM products WHERE rowid = ?", (rowid,))
+        conn.execute("INSERT INTO audit_logs (user_id, username, action, details, timestamp) VALUES (?, ?, ?, ?, ?)", (admin["user_id"], admin["username"],
+        "delete", f"Usunięto produkt: {product['name']} (EAN: {product['ean']}, lokalizacja: {product['location']})", datetime.now(timezone.utc).isoformat()))
+        conn.commit()
+        conn.close()
+        return redirect(url_for("admin_delete_search", success=1))
+    conn.close()
+    return render_template("admin_delete_product.html", product=product)
+
+
 @app.route("/logout")
 def logout():
     admin = get_current_admin()
