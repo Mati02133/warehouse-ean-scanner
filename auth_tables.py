@@ -1,6 +1,5 @@
 import sqlite3
 import os
-from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "database.db")
@@ -19,11 +18,11 @@ cursor.execute("""
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_token TEXT NOT NULL,
+        session_token TEXT UNIQUE NOT NULL,
         user_id INTEGER NOT NULL,
         created_at TEXT NOT NULL,
         last_active TEXT NOT NULL,
-        is_active INTEGER NOT NULL DEFAULT 1,
+        is_active INTEGER NOT NULL DEFAULT 1,    
         FOREIGN KEY (user_id) REFERENCES users (id)    
     )""")
 
