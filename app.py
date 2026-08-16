@@ -1,10 +1,12 @@
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 import sqlite3
 import os
-from datetime import timedelta
+from datetime import timedelta,datetime,timezone
 from dotenv import load_dotenv
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from werkzeug.security import check_password_hash
+import secrets
 
 load_dotenv()
 
@@ -17,7 +19,8 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
 
 ACCESS_CODE = os.environ.get("ACCESS_CODE")
-
+ADMIN_SESSION_DAYS = 100
+app.permanent_session_lifetime = timedelta(days=ADMIN_SESSION_DAYS)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "database.db")
 
@@ -28,6 +31,23 @@ def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row # This allows us to access the columns by name instead of index(product["name"] instead of product[0])
     return conn
+
+def get_current_admin():
+    token = session.get("admin_token")
+    if not token:
+        return None
+    conn = get_db_connection()
+    row = conn.execute("""
+        SELECT sessions.id as session_id, sessions.is_active, users.id as user_id, users.username
+        FROM sessions JOIN users ON sessions.user_id = users.id
+        WHERE sessions.session_token = ?""",
+        (token,)).fetchone()
+    conn.close()
+    if row is None or row["is_active"] == 0:
+        return None
+    return {'session_id': row['session_id'],'user_id': row['user_id'], "username":row['username']}
+
+
 @app.before_request
 
 def require_access():
@@ -54,6 +74,45 @@ def access():
         session["has_access"] = True
         return redirect(url_for("index"))
     return render_template("access.html", error=error)
+@app.route("/login", methods = ["GET", "POST"])
+@limiter.limit("5 per 15 minutes")
+def login():
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        conn = get_db_connection()
+        user = conn.execute("SELECT id, username, password_hash FROM users WHERE username = ?",(username,)).fetchone()
+        if user and check_password_hash(user['password_hash'], password):
+            token = secrets.token_hex(32)
+            now = datetime.now(timezone.utc).isoformat()
+            conn.execute("INSERT INTO sessions (session_token, user_id, created_at, last_active, is_active) VALUES (?, ?, ?, ?, 1)",
+            (token, user["id"], now, now)
+            )
+            conn.commit()
+            conn.close()
+
+            session.clear()
+            session.permanent = True
+            session["admin_token"] = token
+            session["has_access"] = True
+            return redirect(url_for("index"))
+        else:
+            conn.close()
+            error = "Nieprawidlowy login lub haslo"
+    return render_template("login.html", error = error)
+
+
+@app.route("/logout")
+def logout():
+    admin = get_current_admin()
+    if admin:
+        conn = get_db_connection()
+        conn.execute("UPDATE sessions SET is_active = 0 WHERE id = ?", (admin["session_id"],))
+        conn.commit()
+        conn.close()
+    session.clear()
+    return redirect(url_for('access'))
 
 @app.route("/api/search") # Define a route for the API search endpoint
 def api_search():
