@@ -42,6 +42,11 @@ def get_current_admin():
         FROM sessions JOIN users ON sessions.user_id = users.id
         WHERE sessions.session_token = ?""",
         (token,)).fetchone()
+
+    if row is not None and row["is_active"] == 1:
+        conn.execute("UPDATE sessions SET last_active = ? WHERE id = ?", (datetime.now(timezone.utc).isoformat(), row["session_id"]))
+        conn.commit()
+        
     conn.close()
     if row is None or row["is_active"] == 0:
         return None
@@ -51,8 +56,16 @@ def get_current_admin():
 @app.before_request
 
 def require_access():
-    allowed_routes = ["access", "static"]
-    if request.endpoint not in allowed_routes and not session.get("has_access"):
+    allowed_routes = ["access", "static", "login"]
+    if request.endpoint in allowed_routes:
+        return
+    if session.get("admin_token"):
+        admin = get_current_admin()
+        if admin is None:
+            session.clear()
+            return redirect(url_for("access"))
+        return
+    if not session.get("has_access"):
         return redirect(url_for("access"))
 
 @app.route("/access", methods=["GET", "POST"])
