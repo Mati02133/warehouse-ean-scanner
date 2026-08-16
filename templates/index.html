@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Warehouse EAN Scanner</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -34,6 +33,15 @@
         }
         button:active {
             background-color: #1d4ed8;
+        }
+        #start-scan-btn {
+            padding: 22px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            border-radius: 12px;
+        }
+        #start-scan-btn.scanning {
+            background-color: #dc2626;
         }
         #name-search-input {
             width: 100%;
@@ -70,32 +78,12 @@
         .suggestion-item:last-child {
             border-bottom: none;
         }
-        #scanner-container {
-            position: relative;
+        #scan-status {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
             margin-bottom: 16px;
-            display: none;
-        }
-        #qr-reader {
-            width: 100%;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        #qr-reader video {
-            width: 100%;
-            display: block;
-        }
-        #close-scan-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 36px;
-            height: 36px;
-            padding: 0;
-            border-radius: 50%;
-            background-color: rgba(0, 0, 0, 0.6);
-            font-size: 1.1rem;
-            z-index: 20;
-            margin-bottom: 0;
+            min-height: 1.2em;
         }
         form {
             display: flex;
@@ -139,12 +127,8 @@
         <div id="suggestions-box"></div>
     </div>
 
-    <button id="start-scan-btn" type="button">📷 Skanuj kod EAN</button>
-
-    <div id="scanner-container">
-        <div id="qr-reader"></div>
-        <button id="close-scan-btn" type="button">✕</button>
-    </div>
+    <button id="start-scan-btn">📷 Skanuj kod EAN</button>
+    <div id="scan-status"></div>
 
     <form method="POST" id="ean-form">
         <input type="text" name="ean" id="ean-input" placeholder="Wpisz kod EAN" required>
@@ -162,90 +146,77 @@
         <div class="error-box">{{ error }}</div>
     {% endif %}
 
-<script>
+<script type="module">
+    import WebcamBarcodeScanner from 'https://cdn.jsdelivr.net/npm/@point-of-sale/webcam-barcode-scanner/dist/webcam-barcode-scanner.esm.js';
+
     const startBtn = document.getElementById('start-scan-btn');
-    const scannerContainer = document.getElementById('scanner-container');
-    const readerDiv = document.getElementById('qr-reader');
-    const closeBtn = document.getElementById('close-scan-btn');
+    const scanStatus = document.getElementById('scan-status');
     const eanInput = document.getElementById('ean-input');
     const eanForm = document.getElementById('ean-form');
 
-    let lastCode = null;
-    let sameCodeCount = 0;
-    const REQUIRED_MATCHES = 3;
-    let scanningActive = false;
+    let isConnected = false;
+    let isProcessing = false;
 
-    function stopScanner() {
-        Quagga.offDetected();
-        Quagga.stop();
-
-        const video = readerDiv.querySelector('video');
-        if (video && video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
+    const scanner = new WebcamBarcodeScanner({
+        allowedSymbologies: ['ean13', 'ean8'],
+        preview: {
+            size: 320,
+            position: 'bottom-left',
+            draggable: true,
+            padding: { top: 100, left: 20, right: 20, bottom: 20 },
+            radius: 10
         }
+    });
 
-        scanningActive = false;
-        scannerContainer.style.display = 'none';
-        startBtn.style.display = 'block';
-    }
+    scanner.addEventListener('connected', () => {
+        isConnected = true;
+        startBtn.textContent = '⏹ Zatrzymaj skanowanie';
+        startBtn.classList.add('scanning');
+        scanStatus.textContent = 'Skieruj kamerę na kod EAN';
+
+        setTimeout(async () => {
+            const backCamera = scanner.devices.find(
+                device => device.location === 'back' && !device.label.toLowerCase().includes('szerokokątny') && !device.label.toLowerCase().includes('ultra')
+            );
+            if (backCamera) {
+                try {
+                    await scanner.change(backCamera.deviceId);
+                } catch (err) {
+                    console.error('Błąd przełączania kamery:', err);
+                }
+            }
+        }, 150);
+    });
+
+    scanner.addEventListener('disconnected', () => {
+        isConnected = false;
+        startBtn.textContent = '📷 Skanuj kod EAN';
+        startBtn.classList.remove('scanning');
+        scanStatus.textContent = '';
+    });
+
+    scanner.addEventListener('barcode', (e) => {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        scanStatus.textContent = 'Znaleziono: ' + e.value;
+        scanner.disconnect();
+
+        eanInput.value = e.value;
+        setTimeout(() => {
+            eanForm.submit();
+        }, 200);
+    });
 
     startBtn.addEventListener('click', () => {
-        if (scanningActive) return;
-
-        scannerContainer.style.display = 'block';
-        startBtn.style.display = 'none';
-
-        lastCode = null;
-        sameCodeCount = 0;
-        scanningActive = true;
-
-        Quagga.init({
-            inputStream: {
-                type: "LiveStream",
-                target: readerDiv,
-                constraints: {
-                    facingMode: "environment"
-                }
-            },
-            decoder: {
-                readers: ["ean_reader", "ean_8_reader"]
-            },
-            locate: true
-        }, (err) => {
-            if (err) {
-                console.error("Błąd uruchomienia skanera:", err);
-                scanningActive = false;
-                return;
-            }
-            Quagga.start();
-        });
-
-        Quagga.onDetected((result) => {
-            if (!scanningActive) return;
-
-            const code = result.codeResult.code;
-
-            if (code === lastCode) {
-                sameCodeCount++;
-            } else {
-                lastCode = code;
-                sameCodeCount = 1;
-            }
-
-            if (sameCodeCount >= REQUIRED_MATCHES) {
-                stopScanner();
-                eanInput.value = code;
-                setTimeout(() => {
-                    eanForm.submit();
-                }, 100);
-            }
-        });
+        if (isConnected) {
+            scanner.disconnect();
+        } else {
+            scanner.connect();
+        }
     });
 
-    closeBtn.addEventListener('click', () => {
-        stopScanner();
-    });
-
+    // --- Wyszukiwanie po nazwie (bez zmian) ---
     const nameInput = document.getElementById('name-search-input');
     const suggestionsBox = document.getElementById('suggestions-box');
     let debounceTimer = null;
