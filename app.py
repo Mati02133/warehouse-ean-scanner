@@ -140,6 +140,13 @@ def admin_sessions():
     conn.close()
     return render_template("admin_sessions.html", sessions=sessions_list, current_admin_token=admin["session_token"])
 
+@app.route("/admin")
+def admin_panel():
+    admin = get_current_admin()
+    if admin is None:
+        return redirect(url_for("access"))
+    return render_template("admin_panel.html", admin=admin)
+
 @app.route("/admin/products/add", methods=["GET", "POST"])
 def admin_add_product():
     admin = get_current_admin()
@@ -226,4 +233,4 @@ def index():
     return render_template("index.html", result=result, error=error, admin=admin)
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5000)
