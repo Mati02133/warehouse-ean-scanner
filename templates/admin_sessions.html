@@ -74,6 +74,7 @@
             </div>
             {% if s.session_token != current_admin_token %}
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="session_id" value="{{ s.id }}">
                     <button type="submit">Wyloguj</button>
                 </form>
