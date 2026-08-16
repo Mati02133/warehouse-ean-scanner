@@ -140,6 +140,35 @@ def admin_sessions():
     conn.close()
     return render_template("admin_sessions.html", sessions=sessions_list, current_admin_token=admin["session_token"])
 
+@app.route("/admin/products/add", methods=["GET", "POST"])
+def admin_add_product():
+    admin = get_current_admin()
+    if admin is None:
+        return redirect(url_for("access"))
+    error = None 
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        ean = request.form.get("ean", "").strip()
+        location = request.form.get("location", "").strip()
+        if not name or not ean or not location:
+            error = "Wszystkie pola są wymagane." 
+        elif not ean.isdigit():
+            error = "EAN musi składać się tylko z cyfr."
+        else:
+            conn = get_db_connection()
+            existing = conn.execute("SELECT rowid FROM products WHERE ean = ?", (ean,)).fetchone()
+            if existing:
+                error = f"Produkt z EAN {ean} już istnieje w bazie danych."
+            else:
+                conn.execute("INSERT INTO products (name,ean,location) VALUES (?, ?, ?)", (name, ean, location))
+                conn.execute("INSERT INTO audit_logs (user_id, username, action, details, timestamp) VALUES (?, ?, ?, ?, ?)", (admin["user_id"], admin["username"], 
+                "add", f"Dodano: {name} (EAN){ean}, lokalizacja: {location}", datetime.now(timezone.utc).isoformat()))
+                conn.commit()
+                conn.close()
+                return redirect(url_for("admin_add_product", success=1))
+            conn.close()
+    success = request.args.get("success")
+    return render_template("add_product.html", error=error, success=success)
 
 @app.route("/logout")
 def logout():
@@ -197,4 +226,4 @@ def index():
     return render_template("index.html", result=result, error=error, admin=admin)
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5000)
