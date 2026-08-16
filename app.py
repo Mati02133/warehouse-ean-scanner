@@ -46,11 +46,11 @@ def get_current_admin():
     if row is not None and row["is_active"] == 1:
         conn.execute("UPDATE sessions SET last_active = ? WHERE id = ?", (datetime.now(timezone.utc).isoformat(), row["session_id"]))
         conn.commit()
-        
+
     conn.close()
     if row is None or row["is_active"] == 0:
         return None
-    return {'session_id': row['session_id'],'user_id': row['user_id'], "username":row['username']}
+    return {'session_id': row['session_id'],'user_id': row['user_id'], "username":row['username'], "session_token": token} 
 
 
 @app.before_request
@@ -116,6 +116,29 @@ def login():
     return render_template("login.html", error = error)
 
 
+@app.route("/admin/sessions", methods=["GET", "POST"])
+def admin_sessions():
+    admin = get_current_admin()
+    if admin is None:
+        return redirect(url_for("access"))
+    if request.method == "POST":
+        session_id_to_revoke = request.form.get("session_id")
+        conn = get_db_connection()
+        conn.execute("UPDATE sessions SET is_active = 0 WHERE id = ?", (session_id_to_revoke,))
+        conn.commit()
+        conn.close()
+        return redirect(url_for("admin_sessions"))
+    conn = get_db_connection()
+    sessions_list = conn.execute("""
+        SELECT sessions.id, sessions.created_at, sessions.last_active, sessions.session_token, users.username
+        FROM sessions JOIN users ON sessions.user_id = users.id
+        WHERE sessions.is_active = 1
+        ORDER BY sessions.last_active DESC
+    """).fetchall()
+    conn.close()
+    return render_template("admin_sessions.html", sessions=sessions_list, current_admin_token=admin["session_token"])
+
+
 @app.route("/logout")
 def logout():
     admin = get_current_admin()
@@ -155,6 +178,7 @@ def api_search():
 def index():
     result = None
     error = None
+    admin = get_current_admin()
     if request.method == "POST":
         ean = request.form.get("ean", "").strip() # Get the ean
         conn = get_db_connection()
@@ -168,7 +192,7 @@ def index():
             result = {"name": product["name"], "location": product["location"], "ean_last3": ean_last3}
         else:
             error = f"Product with EAN {ean} not found in the database."
-    return render_template("index.html", result=result, error=error)
+    return render_template("index.html", result=result, error=error, admin=admin)
 
 if __name__ == "__main__":
     app.run(debug=False, host="0.0.0.0", port=5000)
